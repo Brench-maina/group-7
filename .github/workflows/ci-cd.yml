@@ -13,18 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      #  Notify Slack - Pipeline Started
-      - name: Notify Slack - Pipeline Started
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          curl -X POST -H "Content-Type: application/json" --data '{
-              "text": "🚀 Deployment started for *Crowd Sourced Learning Backend*!",
-              "channel": "#devops",
-              "username": "Engineer-Bot",
-              "icon_emoji": ":rocket:"
-          }' $SLACK_WEBHOOK_URL
-
+    
       #  Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v3
@@ -47,28 +36,4 @@ jobs:
         run: |
           curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
 
-      # # Notify Slack - Success
-      # - name: Notify Slack - Success
-      #   if: success()
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      #   run: |
-      #     curl -X POST -H "Content-Type: application/json" --data '{
-      #         "text": "✅ *Crowd Sourced Learning Backend* deployed successfully!",
-      #         "channel": "#devops",
-      #         "username": "Engineer-Bot",
-      #         "icon_emoji": ":white_check_mark:"
-      #     }' $SLACK_WEBHOOK_URL
-
-      # #  Notify Slack - Failure
-      # - name: Notify Slack - Failure
-      #   if: failure()
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      #   run: |
-      #     curl -X POST -H "Content-Type: application/json" --data '{
-      #         "text": "❌ Deployment failed for *Crowd Sourced Learning Backend*. Please check the logs.",
-      #         "channel": "#devops",
-      #         "username": "Engineer-Bot",
-      #         "icon_emoji": ":x:"
-      #     }' $SLACK_WEBHOOK_URL
+     
