@@ -18,8 +18,14 @@ class User(db.Model):
     xp = db.Column(db.Integer, default=0)
     streak_days = db.Column(db.Integer, default=0)
     
-    # Relationships for content created by the user
+    # Relationships for content created by the user (Crowd-Sourcing)
     created_courses = db.relationship('Course', back_populates='creator', lazy=True)
+    
+    # --- NEW COMMUNITY RELATIONSHIPS ---
+    topics = db.relationship('DiscussionTopic', back_populates='author', lazy=True)
+    comments = db.relationship('Comment', back_populates='author', lazy=True)
+    reactions = db.relationship('Reaction', back_populates='user', lazy=True)
+    # -----------------------------------
     
     # Relationships for tracking user activity
     enrolled_courses = db.relationship('UserCourse', back_populates='user', lazy=True)
@@ -47,6 +53,7 @@ class Course(db.Model):
     creator = db.relationship('User', back_populates='created_courses')
     lessons = db.relationship('Lesson', back_populates='course', lazy=True)
     enrollments = db.relationship('UserCourse', back_populates='course', lazy=True)
+    topics = db.relationship('DiscussionTopic', back_populates='course', lazy=True) # Link topics to a specific course
     
     def __repr__(self):
         return f"<Course {self.title}>"
@@ -69,6 +76,87 @@ class Lesson(db.Model):
 
     def __repr__(self):
         return f"<Lesson {self.order}: {self.title} in Course {self.course_id}>"
+
+# --- NEW COMMUNITY MODELS START HERE ---
+
+class DiscussionTopic(db.Model):
+    """
+    Represents a forum post or discussion thread started by a user.
+    Can be general or linked to a specific Course.
+    """
+    __tablename__ = 'discussion_topics'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Foreign Keys
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=True) # Optional link to a course
+    
+    # Relationships
+    author = db.relationship('User', back_populates='topics')
+    course = db.relationship('Course', back_populates='topics')
+    comments = db.relationship('Comment', back_populates='topic', lazy=True)
+
+    def __repr__(self):
+        return f"<Topic {self.id}: {self.title[:30]}>"
+
+class Comment(db.Model):
+    """
+    Represents a comment or reply within a discussion topic.
+    Supports nesting via parent_id.
+    """
+    __tablename__ = 'comments'
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Foreign Keys
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    topic_id = db.Column(db.Integer, db.ForeignKey('discussion_topics.id'), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('comments.id'), nullable=True) # For nested replies
+
+    # Relationships
+    author = db.relationship('User', back_populates='comments')
+    topic = db.relationship('DiscussionTopic', back_populates='comments')
+    
+    # Self-referencing relationship for nesting (e.g., reply to a comment)
+    replies = db.relationship('Comment', backref=db.backref('parent', remote_side=[id]), lazy='dynamic')
+    reactions = db.relationship('Reaction', back_populates='comment', lazy=True)
+
+    def __repr__(self):
+        return f"<Comment {self.id} on Topic {self.topic_id}>"
+
+class Reaction(db.Model):
+    """
+    Allows users to react (e.g., 'Like', 'Upvote') to various types of content.
+    Uses nullable foreign keys to link to either a Lesson or a Comment.
+    """
+    __tablename__ = 'reactions'
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Foreign Keys
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    lesson_id = db.Column(db.Integer, db.ForeignKey('lessons.id'), nullable=True)
+    comment_id = db.Column(db.Integer, db.ForeignKey('comments.id'), nullable=True)
+    
+    # Optional: A type field if you wanted reactions other than 'like' (e.g., 'star', 'clap')
+    # type = db.Column(db.String(20), default='like') 
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = db.relationship('User', back_populates='reactions')
+    lesson = db.relationship('Lesson', backref='reactions')
+    comment = db.relationship('Comment', back_populates='reactions')
+
+    # Note: Application logic or database constraints must ensure that ONLY ONE of 
+    # lesson_id or comment_id is populated for any given reaction record.
+
+    def __repr__(self):
+        return f"<Reaction {self.id} by User {self.user_id}>"
+        
+# --- END NEW COMMUNITY MODELS ---
 
 class UserCourse(db.Model):
     """
