@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from werkzeug.security import generate_password_hash
 from models import db, User, UserProgress
+from utils.role_required import role_required
 
 user_bp = Blueprint("user", __name__)
 
@@ -15,16 +15,24 @@ def get_profile():
         return jsonify({"error": "User not found"}), 404
 
     progress = UserProgress.query.filter_by(user_id=user.id).all()
-    
 
     return jsonify({
         "id": user.id,
         "username": user.username,
         "email": user.email,
-        "role": user.role,
+        "role": user.role.value,
         "joined_on": user.created_at.strftime("%Y-%m-%d"),
-        "progress": [{"module": p.module_id, "completed": p.completed} for p in progress],
-        "streak_days": user.streak_days
+        "progress": [
+            {
+                "module_id": p.module_id,
+                "completion_percent": p.completion_percent,
+                "last_score": p.last_score,
+                "completed_at": p.completed_at.strftime("%Y-%m-%d") if p.completed_at else None
+            } for p in progress
+        ],
+        "streak_days": user.streak_days,
+        "points": user.points,
+        "xp": user.xp
     }), 200
 
 
@@ -40,7 +48,10 @@ def update_profile():
     new_email = data.get("email")
 
     if new_username:
-        # Check if username is taken by someone else
+        if len(new_username) < 3:
+            return jsonify({"error": "Username must be at least 3 characters"}), 400
+
+    if new_username:
         if User.query.filter(User.username == new_username, User.id != user.id).first():
             return jsonify({"error": "Username already taken"}), 409
         user.username = new_username
@@ -48,11 +59,13 @@ def update_profile():
     if new_email:
         if User.query.filter(User.email == new_email, User.id != user.id).first():
             return jsonify({"error": "Email already in use"}), 409
-        user.email = new_email
+        try:
+            user.email = new_email
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
 
     db.session.commit()
     return jsonify({"message": "Profile updated successfully"}), 200
-
 
 
 # DELETE Account
@@ -70,7 +83,7 @@ def delete_account():
     return jsonify({"message": "Account deleted successfully"}), 200
 
 
-# ADMIN — View All Users (Optional)
+# ADMIN — View All Users
 @user_bp.route("/all", methods=["GET"])
 @jwt_required()
 def get_all_users():
@@ -84,6 +97,8 @@ def get_all_users():
             "id": u.id,
             "username": u.username,
             "email": u.email,
-            "role": u.role
+            "role": u.role.value,
+            "points": u.points,
+            "xp": u.xp
         } for u in users
     ]), 200
