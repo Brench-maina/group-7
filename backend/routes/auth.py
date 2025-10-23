@@ -12,7 +12,7 @@ auth_bp = Blueprint('auth', __name__)
 def test_auth():
     return jsonify({"message": "auth route working!"})
 
-
+ 
 @auth_bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()

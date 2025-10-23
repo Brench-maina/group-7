@@ -9,8 +9,8 @@ user_bp = Blueprint("user", __name__)
 @user_bp.route("/profile", methods=["GET"])
 @jwt_required()
 def get_profile():
-    current_user = get_jwt_identity()
-    user = User.query.get(current_user["id"])
+    current_user_id = int(get_jwt_identity())  
+    user = User.query.get(current_user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
 
@@ -36,13 +36,13 @@ def get_profile():
     }), 200
 
 
-# UPDATE Profile (username or email)
+# UPDATE Profile
 @user_bp.route("/profile/update", methods=["PUT"])
 @jwt_required()
 def update_profile():
-    current_user = get_jwt_identity()
-    user = User.query.get(current_user["id"])
-    data = request.get_json()
+    current_user_id = int(get_jwt_identity()) 
+    user = User.query.get(current_user_id)
+    data = request.get_json() or {}
 
     new_username = data.get("username")
     new_email = data.get("email")
@@ -51,7 +51,6 @@ def update_profile():
         if len(new_username) < 3:
             return jsonify({"error": "Username must be at least 3 characters"}), 400
 
-    if new_username:
         if User.query.filter(User.username == new_username, User.id != user.id).first():
             return jsonify({"error": "Username already taken"}), 409
         user.username = new_username
@@ -59,10 +58,7 @@ def update_profile():
     if new_email:
         if User.query.filter(User.email == new_email, User.id != user.id).first():
             return jsonify({"error": "Email already in use"}), 409
-        try:
-            user.email = new_email
-        except ValueError as e:
-            return jsonify({"error": str(e)}), 400
+        user.email = new_email
 
     db.session.commit()
     return jsonify({"message": "Profile updated successfully"}), 200
@@ -72,8 +68,8 @@ def update_profile():
 @user_bp.route("/delete", methods=["DELETE"])
 @jwt_required()
 def delete_account():
-    current_user = get_jwt_identity()
-    user = User.query.get(current_user["id"])
+    current_user_id = int(get_jwt_identity())  
+    user = User.query.get(current_user_id)
 
     if not user:
         return jsonify({"error": "User not found"}), 404
@@ -83,14 +79,11 @@ def delete_account():
     return jsonify({"message": "Account deleted successfully"}), 200
 
 
-# ADMIN — View All Users
+# ADMIN can View All Users
 @user_bp.route("/all", methods=["GET"])
 @jwt_required()
+@role_required("admin")
 def get_all_users():
-    current_user = get_jwt_identity()
-    if current_user["role"] != "admin":
-        return jsonify({"error": "Access denied"}), 403
-
     users = User.query.all()
     return jsonify([
         {
