@@ -17,7 +17,7 @@ def register_blueprints(app):
     app.register_blueprint(user_bp, url_prefix="/user")
     app.register_blueprint(community_bp, url_prefix="/community")
     app.register_blueprint(learning_paths_bp, url_prefix="/learning-paths")
-    app.register_blueprint(modules_bp, url_prefix="/modules")
+    app.register_blueprint(modules_bp)
     app.register_blueprint(progress_bp, url_prefix="/progress")
     app.register_blueprint(leaderboard_bp, url_prefix="/leaderboard")
     app.register_blueprint(badges_bp, url_prefix="/badges")
